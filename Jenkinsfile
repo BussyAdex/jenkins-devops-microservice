@@ -23,7 +23,7 @@ pipeline {
 	}
 
 	stages {
-		stage('Build') {
+		stage('Checkout') {
 			steps {
 				sh 'mvn --version'
 				sh 'docker --version'
@@ -36,16 +36,44 @@ pipeline {
 				echo "BUILD_URL - $env.BUILD_URL"	
 			}
 		}
+		stage('Compile') {
+			steps {
+				sh "mvn clean compile"
+			}
+		}
 		stage('Test') {
 			steps {
-				echo "Test"
+				sh "mvn"
 			}
 		}
 		stage('Integration Test') {
 			steps {
-				echo "Integration Test"	
+				sh "mvn failsafe:integration-test failsafe:verify"
 			}
 		}
+		stage('Build DOcker Image') {
+			steps {
+				//"docker build -t bussyadex42/currency-exchange-devops:$env.BUILD_TAG"
+				script {
+					dockerImage = docker.build("bussyadex42/currency-exchange-devops:${env.BUILD_TAG}")
+				}
+			}
+		}
+		stage('Push Docker Image') {
+			steps {
+				script {
+					docker.withRegistry('', 'dockerhub')
+						dockerImage.push();
+						dockerImage.push('latest')
+				}
+			}
+		}
+		stage('Package') {
+			steps {
+				sh "mvn pakage -DskipTests"
+			}
+		}
+		
 	} 
 	
 	post {
